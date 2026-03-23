@@ -1,0 +1,43 @@
+{
+  "name": "secure-audit-service",
+  "version": "1.0.0",
+  "description": "Secure audit log ingestion service with PII scrubbing",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest --coverage",
+    "demo:traces": "tsx src/demo.ts",
+    "compose:up": "command -v docker >/dev/null 2>&1 && docker compose up -d || docker-compose up -d",
+    "compose:down": "command -v docker >/dev/null 2>&1 && docker compose down || docker-compose down",
+    "dev:stop": "kill -9 $(lsof -ti tcp:${PORT:-3002}) || true"
+  },
+  "keywords": [
+    "audit",
+    "logging",
+    "pii",
+    "security"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "fastify": "^4.24.3",
+    "zod": "^3.22.4",
+    "@opentelemetry/api": "^1.8.0",
+    "@opentelemetry/sdk-node": "^0.51.0",
+    "@opentelemetry/auto-instrumentations-node": "^0.51.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.51.0",
+    "@fastify/http-proxy": "^9.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@vitest/coverage-v8": "^1.0.4",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.0.4",
+    "@opentelemetry/sdk-trace-base": "^1.8.0"
+  }
+}
