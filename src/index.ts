@@ -17,6 +17,11 @@ initLogger();
 
 const fastify = Fastify();
 
+// Prefix used when this agent UI is mounted under a reverse-proxy path, e.g.
+// /agents/secure-audit-service/. All in-page links/fetch calls should use this
+// prefix so the browser URL never “falls back” to absolute /sre/* routes.
+const PROXY_BASE_URL = (process.env.PROXY_BASE_URL || '').replace(/\/$/, '');
+
 type Bucket = { ts: number; requests: number; errors: number };
 const buckets: Bucket[] = [];
 const durations: number[] = [];
@@ -79,6 +84,13 @@ fastify.addHook('onResponse', async (req, reply) => {
   } else {
     getLogger().info('request.end', attrs, rid);
   }
+});
+
+// Mount-friendly default entrypoint.
+// When this agent is reverse-proxied under /agents/<slug>/, the browser hits `/`
+// on the upstream. Redirect users to the main Observability UI.
+fastify.get('/', async (_req, reply) => {
+  return reply.redirect(`${PROXY_BASE_URL}/sre/observability`);
 });
 
 fastify.get('/metrics.json', async () => {
@@ -249,7 +261,7 @@ body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-se
     }
     async function tick(){
       try{
-        const r=await fetch('/metrics.json',{cache:'no-store'});
+        const r=await fetch('${PROXY_BASE_URL}/metrics.json',{cache:'no-store'});
         const m=await r.json();
         const set=(id,val,klass)=>{const el=document.getElementById(id);el.textContent=val;el.className='value '+(klass||'')}
         set('p50',m.latency_ms.p50.toFixed(1),cls(m.latency_ms.p50));
@@ -263,9 +275,9 @@ body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-se
       setTimeout(tick,2000);
     }
     document.addEventListener('DOMContentLoaded',()=>{
-      const e=document.getElementById('btnErr'); if(e){ e.onclick=()=>fire('/sre/test/error',10); }
-      const o=document.getElementById('btnOk'); if(o){ o.onclick=()=>fire('/sre/test/ok',10); }
-      const l=document.getElementById('btnLatency'); if(l){ l.onclick=()=>fire('/sre/test/latency?ms=750',5); }
+      const e=document.getElementById('btnErr'); if(e){ e.onclick=()=>fire('${PROXY_BASE_URL}/sre/test/error',10); }
+      const o=document.getElementById('btnOk'); if(o){ o.onclick=()=>fire('${PROXY_BASE_URL}/sre/test/ok',10); }
+      const l=document.getElementById('btnLatency'); if(l){ l.onclick=()=>fire('${PROXY_BASE_URL}/sre/test/latency?ms=750',5); }
     });
     tick();
   </script>
@@ -435,7 +447,7 @@ th,td{border-bottom:1px solid #1f2a4a;padding:8px;text-align:left;font-size:12px
       });
     }
     async function apply(){
-      const res=await fetch('/alerts/state.json',{cache:'no-store'});
+      const res=await fetch('${PROXY_BASE_URL}/alerts/state.json',{cache:'no-store'});
       const rows=await res.json();
       render(rows);
     }
@@ -445,7 +457,7 @@ th,td{border-bottom:1px solid #1f2a4a;padding:8px;text-align:left;font-size:12px
       timer=setInterval(apply,1500);
     }
     async function loadConfig(){
-      const c=await (await fetch('/alerts/config.json',{cache:'no-store'})).json();
+      const c=await (await fetch('${PROXY_BASE_URL}/alerts/config.json',{cache:'no-store'})).json();
       document.getElementById('dynEnabled').checked=!!c.dynamic.enabled;
       document.getElementById('dynWindow').value=Number(c.dynamic.windowSamples||30);
       document.getElementById('devWarn').value=Number((c.dynamic.deviation?.warn||0.1)*100);
@@ -480,7 +492,7 @@ th,td{border-bottom:1px solid #1f2a4a;padding:8px;text-align:left;font-size:12px
         rps:{warn:Number(document.getElementById('rpsWarn').value||50),error:Number(document.getElementById('rpsError').value||200),critical:Number(document.getElementById('rpsCritical').value||500)},
         lag:{warn:Number(document.getElementById('lagWarn').value||50),error:Number(document.getElementById('lagError').value||200),critical:Number(document.getElementById('lagCritical').value||500)}
       };
-      await fetch('/alerts/config.json',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+      await fetch('${PROXY_BASE_URL}/alerts/config.json',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
       apply();
     }
     document.getElementById('apply').onclick=apply;
@@ -519,12 +531,12 @@ iframe{width:100%;height:100%;border:0}
 </head>
 <body>
   <div class="bar">
-    <a class="btn" href="/sre/golden-signals" target="_blank">Open Golden Signals</a>
-    <a class="btn" href="/jaeger" target="_blank">Open Jaeger</a>
+    <a class="btn" href="${PROXY_BASE_URL}/sre/golden-signals" target="_blank">Open Golden Signals</a>
+    <a class="btn" href="${PROXY_BASE_URL}/jaeger" target="_blank">Open Jaeger</a>
   </div>
   <div class="grid">
-    <div><iframe src="/sre/golden-signals"></iframe></div>
-    <div class="col"><iframe src="/jaeger"></iframe></div>
+    <div><iframe src="${PROXY_BASE_URL}/sre/golden-signals"></iframe></div>
+    <div class="col"><iframe src="${PROXY_BASE_URL}/jaeger"></iframe></div>
   </div>
 </body>
 </html>`;
@@ -586,13 +598,13 @@ th,td{border-bottom:1px solid #1f2a4a;padding:8px;text-align:left;font-size:12px
     }
     async function fetchRecent(query){
       const p=new URLSearchParams(query).toString();
-      const res=await fetch('/logs/recent.json?'+p,{cache:'no-store'});return res.json();
+      const res=await fetch('${PROXY_BASE_URL}/logs/recent.json?'+p,{cache:'no-store'});return res.json();
     }
     async function fetchSearch(query){
       const p=new URLSearchParams(query).toString();
-      const res=await fetch('/logs/search.json?'+p,{cache:'no-store'});return res.json();
+      const res=await fetch('${PROXY_BASE_URL}/logs/search.json?'+p,{cache:'no-store'});return res.json();
     }
-    async function fetchFile(){const res=await fetch('/logs/file.json',{cache:'no-store'});return res.json();}
+    async function fetchFile(){const res=await fetch('${PROXY_BASE_URL}/logs/file.json',{cache:'no-store'});return res.json();}
     async function apply(){
       const source=document.getElementById('source').value;
       const level=document.getElementById('level').value;
@@ -782,7 +794,7 @@ input:focus,select:focus{outline:1px solid #3b82f6}
         alert('Please provide target base URL');
         return null;
       }
-      const res = await fetch('/drha/profiles',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+      const res = await fetch('${PROXY_BASE_URL}/drha/profiles',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
       if(!res.ok){
         alert('Failed to create profile');
         return null;
@@ -794,7 +806,7 @@ input:focus,select:focus{outline:1px solid #3b82f6}
     }
 
     async function loadLastProfile(){
-      const res = await fetch('/drha/profiles',{cache:'no-store'});
+      const res = await fetch('${PROXY_BASE_URL}/drha/profiles',{cache:'no-store'});
       if(!res.ok){ return; }
       const all = await res.json();
       if(!all.length){
@@ -870,11 +882,11 @@ input:focus,select:focus{outline:1px solid #3b82f6}
     async function refreshLatest(){
       let profile = null;
       if(lastProfileId){
-        const res = await fetch('/drha/profiles/'+encodeURIComponent(lastProfileId),{cache:'no-store'});
+        const res = await fetch('${PROXY_BASE_URL}/drha/profiles/'+encodeURIComponent(lastProfileId),{cache:'no-store'});
         if(res.ok){ profile = await res.json(); }
       }
       const q = lastProfileId ? ('?profileId='+encodeURIComponent(lastProfileId)) : '';
-      const resRuns = await fetch('/drha/validations'+q,{cache:'no-store'});
+      const resRuns = await fetch('${PROXY_BASE_URL}/drha/validations'+q,{cache:'no-store'});
       if(!resRuns.ok){
         renderRun(null, profile);
         return;
@@ -894,7 +906,7 @@ input:focus,select:focus{outline:1px solid #3b82f6}
       const suite = $('suite').value;
       const experiments = suiteToExperiments(suite);
       const body = { profileId: prof.id, experiments };
-      const res = await fetch('/drha/validations',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+      const res = await fetch('${PROXY_BASE_URL}/drha/validations',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
       if(!res.ok){
         alert('Failed to create validation run');
         return;
@@ -905,7 +917,7 @@ input:focus,select:focus{outline:1px solid #3b82f6}
       let attempts = 0;
       const interval = setInterval(async ()=>{
         attempts++;
-        const r = await fetch('/drha/validations/'+encodeURIComponent(run.id),{cache:'no-store'});
+        const r = await fetch('${PROXY_BASE_URL}/drha/validations/'+encodeURIComponent(run.id),{cache:'no-store'});
         if(!r.ok){ clearInterval(interval); return; }
         const updated = await r.json();
         renderRun(updated, prof);

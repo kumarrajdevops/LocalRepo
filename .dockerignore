@@ -1,0 +1,28 @@
+node_modules
+dist
+tests
+.git
+.DS_Store
+npm-debug.log*
+coverage
+*.log
+*.tgz
+
+# Keep dependency manifests; Dockerfile copies them explicitly.
+!package.json
+!package-lock.json
+
+node_modules
+dist
+tests
+.git
+.DS_Store
+npm-debug.log*
+coverage
+*.log
+*.tgz
+
+# Keep dependency manifests; these are copied explicitly in Dockerfile
+!package.json
+!package-lock.json
+
